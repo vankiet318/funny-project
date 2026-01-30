@@ -40,7 +40,7 @@ while True:
     for e in edges:
         x1,y1 = points[e[0]]
         x2,y2 = points[e[1]]
-        for i in range(15):
+        for i in range(16):
             x = int(x1 + (x2-x1)*i/15)
             y = int(y1 + (y2-y1)*i/15)
             if 0 <= x < WIDTH and 0 <= y < HEIGHT:

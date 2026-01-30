@@ -3,7 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 
-float A, B, C;
+float A = 0;
+float B = 0;
+float C = 0;
 
 float cubeWidth = 20;
 int width = 160, height = 44;
