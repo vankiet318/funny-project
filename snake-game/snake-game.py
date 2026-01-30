@@ -14,6 +14,14 @@ DOWN = (0, -20)
 LEFT = (-20, 0)
 RIGHT = (20, 0)
 
+# Colors
+COLOR_SNAKE_BODY = "green"
+COLOR_SNAKE_HEAD = "darkgreen"
+COLOR_FOOD = "red"
+COLOR_BG = "black"
+COLOR_TEXT = "white"
+COLOR_BORDER = "#333333"
+
 class Snake:
     def __init__(self):
         self.body = [(0, 0), (20, 0), (40, 0)]  # Initial snake body
@@ -30,14 +38,17 @@ class Snake:
         for position in self.body:
             self.add_segment(position)
     
-    def add_segment(self, position):
+    def add_segment(self, position, is_head=False):
         """Add a segment to the snake"""
         segment = turtle.Turtle()
         segment.shape("square")
-        segment.color("green")
+        segment.color(COLOR_SNAKE_HEAD if is_head else COLOR_SNAKE_BODY)
         segment.penup()
         segment.goto(position)
-        self.segments.append(segment)
+        if is_head:
+            self.segments.insert(0, segment)
+        else:
+            self.segments.append(segment)
     
     def move(self):
         """Move the snake"""
@@ -65,6 +76,14 @@ class Snake:
             # Add new segment when growing
             self.add_segment(self.body[-1])
         
+        # Update head color
+        if len(self.segments) > 0:
+            self.segments[0].color(COLOR_SNAKE_HEAD)
+            
+        # Update body segments
+        for i in range(1, len(self.segments)):
+            self.segments[i].color(COLOR_SNAKE_BODY)
+                
         # Update all segment positions to match body
         for i, position in enumerate(self.body):
             if i < len(self.segments):
@@ -144,18 +163,51 @@ class Food:
         self.food.goto(self.position)
 
 class Game:
+    def load_high_score(self):
+        """Load high score from file"""
+        try:
+            with open(".highscore", "r") as f:
+                return int(f.read())
+        except (FileNotFoundError, ValueError):
+            return 0
+            
+    def save_high_score(self):
+        """Save high score to file"""
+        if self.score > self.high_score:
+            self.high_score = self.score
+            with open(".highscore", "w") as f:
+                f.write(str(self.high_score))
+
+    def draw_border(self):
+        """Draw game border"""
+        border = turtle.Turtle()
+        border.speed(0)
+        border.color(COLOR_BORDER)
+        border.penup()
+        border.goto(-WINDOW_WIDTH//2 + 10, -WINDOW_HEIGHT//2 + 10)
+        border.pendown()
+        border.pensize(3)
+        for _ in range(4):
+            border.forward(WINDOW_WIDTH - 20)
+            border.left(90)
+        border.hideturtle()
+
     def __init__(self):
         self.screen = turtle.Screen()
         self.screen.setup(width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
-        self.screen.bgcolor("black")
+        self.screen.bgcolor(COLOR_BG)
         self.screen.title("Snake Game")
         self.screen.tracer(0)  # Disable animation (manual update)
         
+        # Border
+        self.draw_border()
+        
         # Score display
         self.score = 0
+        self.high_score = self.load_high_score()
         self.score_display = turtle.Turtle()
         self.score_display.hideturtle()
-        self.score_display.color("white")
+        self.score_display.color(COLOR_TEXT)
         self.score_display.penup()
         self.score_display.goto(0, WINDOW_HEIGHT//2 - 40)
         
@@ -163,6 +215,7 @@ class Game:
         self.snake = Snake()
         self.food = Food(self.snake.body)
         self.game_over = False
+        self.delay = DELAY
         
         # Set up key bindings
         self.setup_keys()
@@ -187,68 +240,45 @@ class Game:
     def setup_keys(self):
         """Setup keyboard controls"""
         self.screen.listen()
-        self.screen.onkey(lambda: self.snake.change_direction(UP), "Up")
-        self.screen.onkey(lambda: self.snake.change_direction(DOWN), "Down")
-        self.screen.onkey(lambda: self.snake.change_direction(LEFT), "Left")
-        self.screen.onkey(lambda: self.snake.change_direction(RIGHT), "Right")
-        self.screen.onkey(lambda: self.snake.change_direction(UP), "w")
-        self.screen.onkey(lambda: self.snake.change_direction(DOWN), "s")
-        self.screen.onkey(lambda: self.snake.change_direction(LEFT), "a")
-        self.screen.onkey(lambda: self.snake.change_direction(RIGHT), "d")
+        # Direct functions to ensure one call
+        def turn_up(): self.snake.change_direction(UP)
+        def turn_down(): self.snake.change_direction(DOWN)
+        def turn_left(): self.snake.change_direction(LEFT)
+        def turn_right(): self.snake.change_direction(RIGHT)
+        
+        self.screen.onkey(turn_up, "Up")
+        self.screen.onkey(turn_down, "Down")
+        self.screen.onkey(turn_left, "Left")
+        self.screen.onkey(turn_right, "Right")
+        self.screen.onkey(turn_up, "w")
+        self.screen.onkey(turn_down, "s")
+        self.screen.onkey(turn_left, "a")
+        self.screen.onkey(turn_right, "d")
         self.screen.onkey(self.reset_game, "space")
     
     def reset_game(self):
         """Reset the game"""
-        # Clear existing objects
-        if hasattr(self, 'snake') and self.snake:
-            for segment in self.snake.segments:
-                segment.hideturtle()
-                segment.clear()
-            self.snake.segments.clear()
+        # Save high score before reset
+        self.save_high_score()
         
-        if hasattr(self, 'food') and self.food:
-            self.food.food.hideturtle()
-            self.food.food.clear()
-        
-        if hasattr(self, 'start_message'):
-            self.start_message.clear()
-            self.start_message.hideturtle()
-        
-        # Clear screen
-        self.screen.clear()
-        self.screen.bgcolor("black")
-        self.screen.tracer(0)
-        
-        # Create new game objects
-        self.snake = Snake()
-        self.food = Food(self.snake.body)
-        self.score = 0
-        self.game_over = False
-        
-        # Recreate score display
-        self.score_display = turtle.Turtle()
-        self.score_display.hideturtle()
-        self.score_display.color("white")
-        self.score_display.penup()
-        self.score_display.goto(0, WINDOW_HEIGHT//2 - 40)
-        
-        self.setup_keys()
-        self.update_score()
-        self.show_start_message()
-        self.screen.update()
+        # Clear screen and re-init
+        self.screen.clearscreen()
+        self.__init__()
     
     def update_score(self):
         """Update score display"""
         self.score_display.clear()
-        self.score_display.write(f"Score: {self.score}", 
+        self.score_display.write(f"Score: {self.score}  High Score: {self.high_score}", 
                                 align="center", 
                                 font=("Arial", 16, "bold"))
     
     def check_game_over(self):
         """Display game over screen"""
+        self.save_high_score()
+        self.update_score()
         game_over = turtle.Turtle()
         game_over.hideturtle()
-        game_over.color("white")
+        game_over.color(COLOR_TEXT)
         game_over.penup()
         game_over.goto(0, 0)
         game_over.write("Game Over!\nPress SPACE to restart", 
@@ -256,36 +286,41 @@ class Game:
                        font=("Arial", 24, "bold"))
         self.game_over_msg = game_over
     
+    def game_loop(self):
+        """Update game state via ontimer"""
+        if not self.game_over:
+            # Hide start message once game starts
+            if self.snake.started and hasattr(self, 'start_message'):
+                self.start_message.clear()
+                self.start_message.hideturtle()
+                # We don't delete it to avoid errors if referenced elsewhere
+            
+            self.snake.move()
+            
+            # Check if food is eaten
+            if self.snake.eat_food(self.food.position):
+                self.score += 10
+                # Dynamic difficulty: speed up as score increases
+                self.delay = max(0.04, DELAY - (self.score / 500))
+                self.update_score()
+                self.food.respawn(self.snake.body)
+            
+            # Check for collisions
+            if self.snake.check_collision():
+                self.game_over = True
+                self.check_game_over()
+            
+            # Update screen
+            self.screen.update()
+            
+            # Schedule next frame
+            self.screen.ontimer(self.game_loop, int(self.delay * 1000))
+        else:
+            self.screen.update()
+    
     def run(self):
-        """Main game loop"""
-        while True:
-            if not self.game_over:
-                # Hide start message once game starts
-                if self.snake.started and hasattr(self, 'start_message'):
-                    self.start_message.clear()
-                    self.start_message.hideturtle()
-                    delattr(self, 'start_message')
-                
-                self.snake.move()
-                
-                # Check if food is eaten
-                if self.snake.eat_food(self.food.position):
-                    self.score += 10
-                    self.update_score()
-                    self.food.respawn(self.snake.body)
-                
-                # Check for collisions
-                if self.snake.check_collision():
-                    self.game_over = True
-                    self.check_game_over()
-                
-                # Update screen
-                self.screen.update()
-                time.sleep(DELAY)
-            else:
-                self.screen.update()
-                time.sleep(0.1)
-        
+        """Start the game loop"""
+        self.game_loop()
         self.screen.mainloop()
 
 def main():
